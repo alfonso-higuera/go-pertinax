@@ -141,3 +141,45 @@ func (l *List[V]) Nth(idx int) (V, error) {
 		return l.suffix[idx-(rootSize+l.prefixLen)], nil
 	}
 }
+
+func (l *List[V]) prefixIdx(idx int) int {
+	return len(l.prefix) - l.prefixLen + idx
+}
+
+func (l *List[V]) pushFirst(value V) *List[V] {
+	switch {
+	case l.prefix == nil:
+		l.prefix = make([]V, 2)
+	case l.prefixLen == len(l.prefix):
+		increasedPrefixLen := len(l.prefix) << 1
+		var newPrefixLen int
+		if increasedPrefixLen < maxChunkSize {
+			newPrefixLen = increasedPrefixLen
+		} else {
+			newPrefixLen = maxChunkSize
+		}
+
+		newPrefix := make([]V, newPrefixLen)
+		copy(newPrefix[newPrefixLen-l.prefixLen:newPrefixLen], l.prefix)
+		l.prefix = newPrefix
+	}
+
+	l.prefix[l.prefixIdx(-1)] = value
+	l.prefixLen++
+
+	if l.prefixLen == maxChunkSize {
+		l.root = l.root.pushChunkFirst(l.prefix)
+		l.prefix = nil
+		l.prefixLen = 0
+	}
+
+	return l
+}
+
+func (l *List[V]) AddFirst(value V) *List[V] {
+	if l.IsLinear() {
+		return l.pushFirst(value)
+	}
+
+	return l.Clone().pushFirst(value)
+}

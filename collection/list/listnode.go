@@ -287,3 +287,46 @@ func (l *listNode[V]) nth(idx int) V {
 
 	return l.nthChunk(idx)[idx&branchMask]
 }
+
+func (l *listNode[V]) pushChunkFirst(chunk []V) *listNode[V] {
+	if l.size() == 0 && l.shift > shiftIncrement {
+		return l.pushChunkLast(chunk)
+	}
+
+	stack := make([]*listNode[V], l.shift/shiftIncrement)
+	stack[0] = l
+	for i := 1; i < len(stack); i++ {
+		node := stack[i-1]
+		stack[i] = node.nodes[0].(*listNode[V])
+	}
+
+	if stack[len(stack)-1].numNodes == maxBranches {
+		if l.numNodes == maxBranches {
+			return newListNode[V](l.shift + shiftIncrement).pushChunkLast(chunk).pushNodeLast(l)
+		}
+		return l.pushNodeFirst(newListNodeFromChunk(chunk))
+	}
+
+	parent := stack[len(stack)-1]
+	if len(parent.nodes) == parent.numNodes {
+		parent.grow()
+	}
+	copy(parent.nodes[1:parent.numNodes+1], parent.nodes)
+	copy(parent.offsets[1:parent.numNodes+1], parent.offsets)
+	parent.offsets[0] = 0
+	parent.numNodes++
+
+	for i, node := range stack {
+		if i == len(stack)-1 {
+			node.nodes[0] = chunk
+		} else {
+			node.nodes[0] = stack[i+1]
+		}
+		for j := 0; j < node.numNodes; j++ {
+			node.offsets[j] += len(chunk)
+		}
+		node.updateStrict()
+	}
+
+	return stack[0]
+}
